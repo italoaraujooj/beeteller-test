@@ -34,7 +34,7 @@ Antes de começar, você precisará ter instalado em sua máquina:
 
 1.  **Clone o repositório:**
     ```bash
-    $ git clone <https://github.com/italoaraujooj/beetellet-test.git>
+    $ git clone https://github.com/italoaraujooj/beetellet-test.git
     $ cd PIX-BEETELLER-API
     ```
 
