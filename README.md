@@ -2,97 +2,135 @@
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+<h1 align="center">PIX-BEETELLER-API</h1>
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+<p align="center">
+  Uma API para coleta de mensagens Pix, desenvolvida como parte de um desafio técnico.
 </p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+## Descrição
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+A **PIX-BEETELLER-API** é uma aplicação backend construída com [NestJS](https://nestjs.com/) (Node.js) e TypeScript, projetada para simular a coleta e o gerenciamento de mensagens Pix em um cenário de alto volume e escalabilidade. Este projeto tem como base as especificações da Interface de Comunicação do SPI (Sistema de Pagamentos Instantâneos) do Banco Central do Brasil.
 
-## Project setup
+O objetivo principal é implementar um mecanismo avançado para o gerenciamento de *streams* de mensagens, garantindo a entrega única, controle de concorrência e funcionalidades de *long polling*, conforme detalhado nos requisitos do desafio.
 
-```bash
-$ npm install
-```
+## Tecnologias Utilizadas
 
-## Compile and run the project
+* **Backend:** [NestJS](https://nestjs.com/) (Node.js)
+* **Linguagem:** [TypeScript](https://www.typescriptlang.org/)
+* **Banco de Dados:** [PostgreSQL](https://www.postgresql.org/)
+* **ORM:** [TypeORM](https://typeorm.io/) (a ser integrado)
+* **Testes:** Jest (para testes unitários e e2e)
 
-```bash
-# development
-$ npm run start
+## Pré-requisitos
 
-# watch mode
-$ npm run start:dev
+Antes de começar, você precisará ter instalado em sua máquina:
+* [Node.js](https://nodejs.org/) (versão recomendada: >= 18.x)
+* [npm](https://www.npmjs.com/) ou [yarn](https://yarnpkg.com/)
+* [PostgreSQL](https://www.postgresql.org/download/) (ou uma instância Docker rodando)
+* [Git](https://git-scm.com/)
 
-# production mode
-$ npm run start:prod
-```
+## Configuração do Projeto (Setup)
 
-## Run tests
+1.  **Clone o repositório:**
+    ```bash
+    $ git clone <https://github.com/italoaraujooj/beetellet-test.git>
+    $ cd PIX-BEETELLER-API
+    ```
 
-```bash
-# unit tests
-$ npm run test
+2.  **Instale as dependências:**
+    ```bash
+    $ npm install
+    ```
+    ou
+    ```bash
+    $ yarn install
+    ```
 
-# e2e tests
-$ npm run test:e2e
+3.  **Configuração do Ambiente:**
+    * Crie um arquivo `.env` na raiz do projeto, baseado no arquivo `.env.example` (que você deverá criar).
+    * Preencha as variáveis de ambiente necessárias, especialmente para a conexão com o banco de dados PostgreSQL:
+        ```env
+        # Exemplo de variáveis para .env
+        DB_HOST=localhost
+        DB_PORT=5432
+        DB_USERNAME=seu_usuario_pg
+        DB_PASSWORD=sua_senha_pg
+        DB_DATABASE=pix_beeteller_db
+        PORT=3000
+        ```
+    * Certifique-se de que o banco de dados `pix_beeteller_db` (ou o nome que você escolher) exista na sua instância PostgreSQL.
 
-# test coverage
-$ npm run test:cov
-```
+## Rodando a Aplicação
 
-## Deployment
+1.  **Modo de Desenvolvimento (com watch):**
+    ```bash
+    $ npm run start:dev
+    ```
+    ou
+    ```bash
+    $ yarn start:dev
+    ```
+    A aplicação estará disponível em `http://localhost:3000` (ou a porta configurada no `.env`).
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+2.  **Produção (build e execução):**
+    ```bash
+    # Para criar o build de produção
+    $ npm run build
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+    # Para rodar a aplicação em modo de produção
+    $ npm run start:prod
+    ```
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+## Testes
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+1.  **Testes Unitários:**
+    ```bash
+    $ npm run test
+    ```
+    ou
+    ```bash
+    $ yarn test
+    ```
 
-## Resources
+2.  **Testes End-to-End (e2e):**
+    ```bash
+    $ npm run test:e2e
+    ```
+    ou
+    ```bash
+    $ yarn test:e2e
+    ```
+    *Nota: Os testes e2e podem requerer um banco de dados de teste configurado.*
 
-Check out a few resources that may come in handy when working with NestJS:
+3.  **Cobertura de Testes:**
+    ```bash
+    $ npm run test:cov
+    ```
+    ou
+    ```bash
+    $ yarn test:cov
+    ```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Visão Geral da API (Endpoints Principais)
 
-## Support
+* `POST /api/util/msgs/{ispb}/{number}`: Endpoint utilitário para popular o banco com mensagens Pix de teste.
+* `GET /api/pix/{ispb}/stream/start`: Inicia um novo *stream* para coleta de mensagens Pix.
+* `GET /api/pix/{ispb}/stream/{interationId}`: Continua um *stream* existente para coleta de mensagens.
+* `DELETE /api/pix/{ispb}/stream/{interationId}`: Finaliza um *stream* de coleta.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+*(Mais detalhes sobre os parâmetros, headers e corpos de resposta/requisição serão adicionados conforme o desenvolvimento.)*
 
-## Stay in touch
+## Estrutura do Projeto e Decisões de Design
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+*(Esta seção será preenchida com explicações sobre as escolhas de arquitetura, organização de pastas e outras decisões técnicas relevantes tomadas durante o desenvolvimento do desafio.)*
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Este projeto está licenciado sob os termos da licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes (o NestJS geralmente inclui um arquivo LICENSE.md, caso contrário, você pode adicionar um padrão MIT).
+
+---
+
+<p align="center">
+  Desenvolvido para o Desafio Técnico.
+</p>
