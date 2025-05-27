@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -6,6 +11,8 @@ import { ActiveStream } from '../entities/active-stream.entity';
 
 @Injectable()
 export class ActiveStreamsService {
+  private readonly logger = new Logger(ActiveStreamsService.name);
+
   constructor(
     @InjectRepository(ActiveStream)
     private readonly activeStreamRepository: Repository<ActiveStream>,
@@ -17,6 +24,70 @@ export class ActiveStreamsService {
       interationId,
       ispb,
     });
+    this.logger.log(`Criando novo stream ${interationId} para ISPB ${ispb}`);
     return this.activeStreamRepository.save(newStream);
+  }
+
+  async findValidStreamAndTouch(
+    interationId: string,
+    expectedIspbFromPath: string,
+  ): Promise<ActiveStream> {
+    const stream = await this.activeStreamRepository.findOne({
+      where: { interationId },
+    });
+
+    if (!stream) {
+      this.logger.warn(
+        `Stream com interationId ${interationId} não encontrado.`,
+      );
+      throw new NotFoundException(
+        `Stream com interationId ${interationId} não encontrado.`,
+      );
+    }
+
+    if (stream.ispb !== expectedIspbFromPath) {
+      this.logger.warn(
+        `ISPB da URL (${expectedIspbFromPath}) não corresponde ao ISPB do stream ${interationId} (${stream.ispb}).`,
+      );
+      throw new ForbiddenException(
+        `O stream ${interationId} não pertence ao ISPB ${expectedIspbFromPath}.`,
+      );
+    }
+
+    stream.lastActivityAt = new Date();
+    this.logger.log(`Atualizando lastActivityAt para o stream ${interationId}`);
+    return this.activeStreamRepository.save(stream);
+  }
+
+  async deleteStream(
+    interationId: string,
+    expectedIspbFromPath: string,
+  ): Promise<void> {
+    const stream = await this.activeStreamRepository.findOne({
+      where: { interationId },
+    });
+
+    if (!stream) {
+      this.logger.warn(
+        `Tentativa de deletar stream inexistente: ${interationId}.`,
+      );
+      throw new NotFoundException(
+        `Stream com interationId ${interationId} não encontrado.`,
+      );
+    }
+
+    if (stream.ispb !== expectedIspbFromPath) {
+      this.logger.warn(
+        `ISPB da URL (${expectedIspbFromPath}) não corresponde ao ISPB do stream ${interationId} (${stream.ispb}) na tentativa de deleção.`,
+      );
+      throw new ForbiddenException(
+        `O stream ${interationId} não pertence ao ISPB ${expectedIspbFromPath} fornecido.`,
+      );
+    }
+
+    this.logger.log(
+      `Deletando stream ${interationId} para ISPB ${stream.ispb}`,
+    );
+    await this.activeStreamRepository.remove(stream);
   }
 }

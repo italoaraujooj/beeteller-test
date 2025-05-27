@@ -3,9 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { PixMessage } from '../entities/pix-message.entity';
 import { ActiveStreamsService } from '../../active-streams/services/active-streams.service';
-import { ActiveStream } from '../../active-streams/entities/active-stream.entity';
 
-export interface StartStreamResult {
+export interface StreamProcessingResult {
   messages: PixMessage[];
   interationId: string;
   pullNextUrl: string;
@@ -26,14 +25,55 @@ export class PixMessagesService {
   async startNewPixStream(
     ispb: string,
     acceptHeader?: string,
-  ): Promise<StartStreamResult> {
+  ): Promise<StreamProcessingResult> {
+    // Interface renomeada
+    // 1. Cria um novo stream e obtém o interationId
     const activeStream = await this.activeStreamsService.createNewStream(ispb);
-    const { interationId } = activeStream;
 
-    const pullNextUrl = `/api/pix/${ispb}/stream/${interationId}`;
+    // 2. Chama o método auxiliar para buscar e bloquear mensagens
+    this.logger.log(
+      `Novo stream iniciado: ${activeStream.interationId} para ISPB ${ispb}`,
+    );
+    return this.fetchAndLockMessagesForStream(
+      activeStream.ispb,
+      activeStream.interationId,
+      acceptHeader,
+    );
+  }
 
+  async getMessagesForExistingStream(
+    currentInterationId: string,
+    ispbFromPath: string, // ISPB da URL para validação
+    acceptHeader?: string,
+  ): Promise<StreamProcessingResult> {
+    const activeStream =
+      await this.activeStreamsService.findValidStreamAndTouch(
+        currentInterationId,
+        ispbFromPath,
+      );
+
+    this.logger.log(
+      `Continuando stream: ${currentInterationId} para ISPB ${activeStream.ispb}`,
+    );
+    return this.fetchAndLockMessagesForStream(
+      activeStream.ispb,
+      currentInterationId,
+      acceptHeader,
+    );
+  }
+
+  /**
+   * Método auxiliar privado para buscar mensagens disponíveis, bloqueá-las
+   * e preparar o resultado do processamento do stream.
+   */
+  private async fetchAndLockMessagesForStream(
+    streamIspb: string, 
+    streamInterationId: string, 
+    acceptHeader?: string,
+  ): Promise<StreamProcessingResult> {
+    const pullNextUrl = `/api/pix/${streamIspb}/stream/${streamInterationId}`;
     const limit =
-      acceptHeader === 'multipart/json' || acceptHeader === 'application/json+M'
+      acceptHeader === 'multipart/json'
         ? 10
         : 1;
 
@@ -44,8 +84,8 @@ export class PixMessagesService {
         PixMessage,
         {
           where: {
-            recebedorIspb: ispb,
-            status: 'disponivel',
+            recebedorIspb: streamIspb, 
+            status: 'disponivel', 
           },
           take: limit,
           order: { createdAt: 'ASC' },
@@ -54,36 +94,38 @@ export class PixMessagesService {
 
       if (availableMessages.length > 0) {
         const messageIdsToLock = availableMessages.map((msg) => msg.id);
+
         await transactionalEntityManager.update(
           PixMessage,
           { id: In(messageIdsToLock) },
-          { status: 'bloqueada', streamId: interationId },
+          { status: 'bloqueada', streamId: streamInterationId },
         );
-        selectedMessages = availableMessages;
-        selectedMessages.forEach((msg) => {
-          msg.status = 'bloqueada';
-          msg.streamId = interationId;
-        });
+
+        selectedMessages = availableMessages.map((msg) => ({
+          ...msg, 
+          status: 'bloqueada',
+          streamId: streamInterationId,
+        }));
       }
     });
 
     if (selectedMessages.length > 0) {
       this.logger.log(
-        `Stream ${interationId} started for ISPB ${ispb}, found ${selectedMessages.length} messages.`,
+        `Stream ${streamInterationId} (ISPB ${streamIspb}), encontrou e bloqueou ${selectedMessages.length} mensagens.`,
       );
       return {
         messages: selectedMessages,
-        interationId,
+        interationId: streamInterationId,
         pullNextUrl,
         statusCode: 200,
       };
     } else {
       this.logger.log(
-        `Stream ${interationId} started for ISPB ${ispb}, no messages found.`,
+        `Stream ${streamInterationId} (ISPB ${streamIspb}), nenhuma nova mensagem encontrada.`,
       );
       return {
         messages: [],
-        interationId,
+        interationId: streamInterationId,
         pullNextUrl,
         statusCode: 204,
       };
