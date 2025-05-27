@@ -157,12 +157,10 @@ describe('PixMessagesService', () => {
         mockPixMessages.length,
       );
       mockPixMessages.forEach((msgData) => {
-        // msgData aqui é o objeto original antes de ser modificado no loop do serviço
-        // A asserção aqui deve verificar que o save foi chamado com o objeto *após* as modificações de status e streamId
         expect(entityManagerMock.save).toHaveBeenCalledWith(
           PixMessage,
           expect.objectContaining({
-            id: msgData.id, // ou o objeto original 'msg' que foi modificado
+            id: msgData.id, 
             status: 'bloqueada',
             streamId: mockActiveStream.interationId,
           }),
@@ -174,7 +172,6 @@ describe('PixMessagesService', () => {
       expect(result.pullNextUrl).toBe(
         `/api/pix/${ispb}/stream/${mockActiveStream.interationId}`,
       );
-      // Esta asserção deve agora funcionar corretamente:
       expect(result.messages).toEqual(expectedLockedMessages);
     });
 
