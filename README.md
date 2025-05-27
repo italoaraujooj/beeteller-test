@@ -24,8 +24,9 @@ O campo `valor` nas mensagens Pix é retornado como uma **string** para garantir
 * **Backend:** [NestJS](https://nestjs.com/) (Node.js)
 * **Linguagem:** [TypeScript](https://www.typescriptlang.org/)
 * **Banco de Dados:** [PostgreSQL](https://www.postgresql.org/)
-* **ORM:** [TypeORM](https://typeorm.io/) (a ser integrado)
-* **Testes:** Jest (para testes unitários e e2e)
+* **ORM:** [TypeORM](https://typeorm.io/)
+* **Containerização:** [Docker](https://www.docker.com/) e [DockerCompose](https://docs.docker.com/compose/)
+* **Testes:** [Jest](https://jestjs.io/) (para testes unitários)
 
 ## Pré-requisitos
 
@@ -34,6 +35,8 @@ Antes de começar, você precisará ter instalado em sua máquina:
 * [npm](https://www.npmjs.com/) ou [yarn](https://yarnpkg.com/)
 * [PostgreSQL](https://www.postgresql.org/download/) (ou uma instância Docker rodando)
 * [Git](https://git-scm.com/)
+* [Docker](https://www.docker.com/) e [DockerCompose](https://docs.docker.com/compose/) (Para rodar a aplicação via Docker)
+* Opcional: Um cliente PostgreSQL (como DBeaver, pgAdmin) se desejar acessar o banco de dados diretamente.
 
 ## Configuração do Projeto (Setup)
 
@@ -43,7 +46,7 @@ Antes de começar, você precisará ter instalado em sua máquina:
     $ cd PIX-BEETELLER-API
     ```
 
-2.  **Instale as dependências:**
+2.  **Instale as dependências: (Se for rodar localmente fora do Docker)**
     ```bash
     $ npm install
     ```
@@ -87,6 +90,22 @@ Antes de começar, você precisará ter instalado em sua máquina:
     $ npm run start:prod
     ```
 
+3. **Rodando com Docker Compose (recomendado)**
+    Esta é a forma recomendada para um ambiente de desenvolvimento consistente e para facilitar a avaliação, pois gerencia tanto a API quanto o banco de dados PostgreSQL.
+
+* Pré-requisitos: Docker e Docker Compose instalados e rodando.
+
+* Certifique-se de ter configurado seu arquivo .env conforme o Passo 2 da Configuração.
+
+* Para iniciar a aplicação (API + Banco de Dados):
+Na raiz do projeto, execute:
+```bash
+$ docker compose up --build -d
+```
+
+* A API estará disponível em: http://localhost:${PORT} (por exemplo, http://localhost:3000 se PORT=3000 no seu .env)
+* O banco de dados PostgreSQL estará acessível (para clientes de BD externos) em: localhost:${POSTGRES_PORT} (por exemplo, localhost:4321 se POSTGRES_PORT=4321 no seu .env).
+
 ## Testes
 
 1.  **Testes Unitários:**
@@ -96,25 +115,6 @@ Antes de começar, você precisará ter instalado em sua máquina:
     ou
     ```bash
     $ yarn test
-    ```
-
-2.  **Testes End-to-End (e2e):**
-    ```bash
-    $ npm run test:e2e
-    ```
-    ou
-    ```bash
-    $ yarn test:e2e
-    ```
-    *Nota: Os testes e2e podem requerer um banco de dados de teste configurado.*
-
-3.  **Cobertura de Testes:**
-    ```bash
-    $ npm run test:cov
-    ```
-    ou
-    ```bash
-    $ yarn test:cov
     ```
 
 ## Visão Geral da API (Endpoints Principais)
@@ -128,7 +128,36 @@ Antes de começar, você precisará ter instalado em sua máquina:
 
 ## Estrutura do Projeto e Decisões de Design
 
-*(Esta seção será preenchida com explicações sobre as escolhas de arquitetura, organização de pastas e outras decisões técnicas relevantes tomadas durante o desenvolvimento do desafio.)*
+Esta seção descreve as principais escolhas de arquitetura, organização de pastas e decisões técnicas tomadas durante o desenvolvimento da PIX-BEETELLER-API. O objetivo foi construir uma aplicação robusta, escalável e de fácil manutenção, seguindo as melhores práticas e os requisitos do desafio.
+
+A arquitetura desta API foi pensada para atender aos requisitos de um sistema de coleta de mensagens Pix, priorizando clareza, manutenibilidade e a demonstração de boas práticas com o NestJS.
+
+Arquitetura Modular com NestJS:
+
+* A escolha pelo NestJS e TypeScript visa uma base de código organizada, fortemente tipada e escalável.
+* O projeto foi dividido em módulos de feature (PixMessagesModule, ActiveStreamsModule, UtilsModule) para isolar domínios.
+
+Gerenciamento de Dados e Lógica Chave:
+
+* Persistência com PostgreSQL e TypeORM (synchronize: true para desenvolvimento).
+* valor como string na API para precisão monetária.
+* pagador/recebedor como JSONB; recebedorIspb denormalizado e indexado.
+* Controle de estado de mensagens (status, streamId) e streams (ActiveStream) com transações para atomicidade.
+
+Funcionalidades Avançadas (Conforme Requisitos do Desafio):
+
+* Long Polling (8s) implementado nos endpoints GET.
+* Controle de Concorrência (6 coletores/ISPB) com status 429.
+Configuração e Ambiente de Desenvolvimento:
+
+* Variáveis de ambiente via .env com fallbacks no código para facilitar execução inicial.
+* Docker e Docker Compose: Tanto a API quanto o PostgreSQL são executados via Docker Compose, garantindo um ambiente de desenvolvimento consistente e de fácil reprodução.
+
+Testes:
+
+Foram implementados testes unitários com Jest para os serviços da aplicação (ActiveStreamsService, PixMessagesService). As dependências externas (repositórios, outros serviços) são mockadas. 
+
+Estas decisões visam não apenas cumprir os requisitos funcionais, mas também construir uma base sólida que poderia ser expandida para uma aplicação de produção.
 
 ## License
 

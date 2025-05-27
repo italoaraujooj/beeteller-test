@@ -1,0 +1,39 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Pasta de dependências do host (não queremos copiar para o build)
+node_modules
+.npm
+
+# Arquivos de ambiente locais (não devem ir para a imagem)
+.env
+.env.*.local
+.env.local
+
+# Pasta de build local (o Dockerfile vai gerar a sua própria)
+dist
+# Se você tiver outras pastas de build ou cache
+# .cache
+# coverage
+
+# Arquivos do Git
+.git
+.gitignore
+.gitattributes
+
+# Arquivos do Docker (este mesmo arquivo)
+.dockerignore
+Dockerfile* # Se você tiver Dockerfile.dev, etc.
+
+# Configurações de IDE
+.vscode/
+.idea/
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
