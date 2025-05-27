@@ -26,11 +26,7 @@ export class PixMessagesService {
     ispb: string,
     acceptHeader?: string,
   ): Promise<StreamProcessingResult> {
-    // Interface renomeada
-    // 1. Cria um novo stream e obtém o interationId
     const activeStream = await this.activeStreamsService.createNewStream(ispb);
-
-    // 2. Chama o método auxiliar para buscar e bloquear mensagens
     this.logger.log(
       `Novo stream iniciado: ${activeStream.interationId} para ISPB ${ispb}`,
     );
@@ -67,15 +63,12 @@ export class PixMessagesService {
    * e preparar o resultado do processamento do stream.
    */
   private async fetchAndLockMessagesForStream(
-    streamIspb: string, 
-    streamInterationId: string, 
+    streamIspb: string,
+    streamInterationId: string,
     acceptHeader?: string,
   ): Promise<StreamProcessingResult> {
     const pullNextUrl = `/api/pix/${streamIspb}/stream/${streamInterationId}`;
-    const limit =
-      acceptHeader === 'multipart/json'
-        ? 10
-        : 1;
+    const limit = acceptHeader === 'multipart/json' ? 10 : 1;
 
     let selectedMessages: PixMessage[] = [];
 
@@ -84,8 +77,8 @@ export class PixMessagesService {
         PixMessage,
         {
           where: {
-            recebedorIspb: streamIspb, 
-            status: 'disponivel', 
+            recebedorIspb: streamIspb,
+            status: 'disponivel',
           },
           take: limit,
           order: { createdAt: 'ASC' },
@@ -102,7 +95,7 @@ export class PixMessagesService {
         );
 
         selectedMessages = availableMessages.map((msg) => ({
-          ...msg, 
+          ...msg,
           status: 'bloqueada',
           streamId: streamInterationId,
         }));
@@ -173,5 +166,20 @@ export class PixMessagesService {
       messages.push(await this.pixMessageRepository.save(messageEntity));
     }
     return messages;
+  }
+
+  async finalizeStream(
+    interationId: string,
+    ispbFromPath: string,
+  ): Promise<void> {
+    await this.activeStreamsService.deleteStream(interationId, ispbFromPath);
+    const updateResult = await this.pixMessageRepository.update(
+      { streamId: interationId, status: 'bloqueada' }, // Condição para encontrar as mensagens do stream
+      { status: 'processada' }, // Novo status
+    );
+
+    this.logger.log(
+      `Stream ${interationId} for ISPB ${ispbFromPath} finalized. ${updateResult.affected || 0} PIX messages marked as processed.`,
+    );
   }
 }

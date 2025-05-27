@@ -8,6 +8,8 @@ import {
   HttpStatus,
   NotFoundException,
   ForbiddenException,
+  Delete,
+  HttpCode,
 } from '@nestjs/common';
 import {
   PixMessagesService,
@@ -87,7 +89,7 @@ export class PixMessagesController {
     try {
       const result = await this.pixMessagesService.getMessagesForExistingStream(
         interationId,
-        ispb, // Passar o ispb da URL para validação
+        ispb, 
         acceptHeader,
       );
 
@@ -96,12 +98,12 @@ export class PixMessagesController {
 
       if (result.statusCode === HttpStatus.OK && result.messages.length > 0) {
         response.json(
-          acceptHeader === 'multipart/json' // Simplifiquei a checagem do multipart
+          acceptHeader === 'multipart/json' 
             ? result.messages
             : result.messages[0],
         );
       } else {
-        response.send(); // Envia resposta vazia para 204 No Content
+        response.send(); 
       }
     } catch (error) {
       this.logger.error(
@@ -122,6 +124,50 @@ export class PixMessagesController {
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
             message:
               'An internal server error occurred while getting messages for the stream.',
+          });
+        }
+      }
+    }
+  }
+
+  @Delete(':ispb/stream/:interationId')
+  @HttpCode(HttpStatus.OK)
+  async finalizePixStream(
+    @Param('ispb') ispb: string,
+    @Param('interationId') interationId: string,
+    @Res() response?: Response,
+  ): Promise<void> {
+    this.logger.log(
+      `Request to finalize stream for ISPB: ${ispb}, interationId: ${interationId}`,
+    );
+
+    if (!response) {
+      this.logger.error('Response object is undefined in finalizePixStream');
+      return;
+    }
+
+    try {
+      await this.pixMessagesService.finalizeStream(interationId, ispb);
+      response.json({});
+    } catch (error) {
+      this.logger.error(
+        `Error finalizing stream ${interationId}: ${error.message}`,
+        error.stack,
+      );
+      if (!response.headersSent) {
+        if (error instanceof NotFoundException) {
+          response
+            .status(HttpStatus.NOT_FOUND)
+            .json({ message: error.message });
+        } else if (error instanceof ForbiddenException) {
+          response
+            .status(HttpStatus.FORBIDDEN)
+            .json({ message: error.message });
+        } else {
+          response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+            statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+            message:
+              'An internal server error occurred while finalizing the stream.',
           });
         }
       }
