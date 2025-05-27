@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -19,12 +21,29 @@ export class ActiveStreamsService {
   ) {}
 
   async createNewStream(ispb: string): Promise<ActiveStream> {
+    const activeCount = await this.activeStreamRepository.count({
+      where: { ispb },
+    });
+
+    const MAX_CONCURRENT_STREAMS = 6;
+    if (activeCount >= MAX_CONCURRENT_STREAMS) {
+      this.logger.warn(
+        `Tentativa de criar novo stream para ISPB ${ispb} falhou: limite de ${MAX_CONCURRENT_STREAMS} streams ativos atingido. Atuais: ${activeCount}.`,
+      );
+      throw new HttpException(
+        `Limite máximo de ${MAX_CONCURRENT_STREAMS} streams ativos para o ISPB ${ispb} foi atingido.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const interationId = uuidv4();
     const newStream = this.activeStreamRepository.create({
       interationId,
       ispb,
     });
-    this.logger.log(`Criando novo stream ${interationId} para ISPB ${ispb}`);
+    this.logger.log(
+      `Criando novo stream ${interationId} para ISPB ${ispb}. Contagem atual antes deste: ${activeCount}`,
+    );
     return this.activeStreamRepository.save(newStream);
   }
 
