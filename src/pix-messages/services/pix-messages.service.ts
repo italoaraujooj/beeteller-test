@@ -62,6 +62,7 @@ export class PixMessagesService {
    * Método auxiliar privado para buscar mensagens disponíveis, bloqueá-las
    * e preparar o resultado do processamento do stream.
    */
+  // OBS.: Modificado para incluir o Long Polling
   private async fetchAndLockMessagesForStream(
     streamIspb: string,
     streamInterationId: string,
@@ -69,7 +70,6 @@ export class PixMessagesService {
   ): Promise<StreamProcessingResult> {
     const pullNextUrl = `/api/pix/${streamIspb}/stream/${streamInterationId}`;
     const limit = acceptHeader === 'multipart/json' ? 10 : 1;
-
     let selectedMessages: PixMessage[] = [];
 
     await this.dataSource.transaction(async (transactionalEntityManager) => {
@@ -86,25 +86,77 @@ export class PixMessagesService {
       );
 
       if (availableMessages.length > 0) {
-        const messageIdsToLock = availableMessages.map((msg) => msg.id);
-
-        await transactionalEntityManager.update(
-          PixMessage,
-          { id: In(messageIdsToLock) },
-          { status: 'bloqueada', streamId: streamInterationId },
-        );
-
-        selectedMessages = availableMessages.map((msg) => ({
-          ...msg,
-          status: 'bloqueada',
-          streamId: streamInterationId,
-        }));
+        const lockedMessages: PixMessage[] = [];
+        for (const msg of availableMessages) {
+          msg.status = 'bloqueada';
+          msg.streamId = streamInterationId;
+          const savedMsg = await transactionalEntityManager.save(
+            PixMessage,
+            msg,
+          );
+          lockedMessages.push(savedMsg);
+        }
+        selectedMessages = lockedMessages;
       }
     });
 
+    // --- Lógica de Long Polling (se nenhuma mensagem foi encontrada inicialmente) ---
+    if (selectedMessages.length === 0) {
+      this.logger.log(
+        `Nenhuma mensagem para stream ${streamInterationId} inicialmente. Iniciando long poll (max 8s)...`,
+      );
+      const pollingEndTime = Date.now() + 8000;
+      const pollingInterval = 500;
+
+      while (Date.now() < pollingEndTime) {
+        await new Promise((resolve) => setTimeout(resolve, pollingInterval));
+
+        await this.dataSource.transaction(
+          async (transactionalEntityManager) => {
+            const availableMessagesDuringPoll =
+              await transactionalEntityManager.find(PixMessage, {
+                where: {
+                  recebedorIspb: streamIspb,
+                  status: 'disponivel',
+                },
+                take: limit,
+                order: { createdAt: 'ASC' },
+              });
+
+            if (availableMessagesDuringPoll.length > 0) {
+              const lockedMessagesInPoll: PixMessage[] = [];
+              for (const msg of availableMessagesDuringPoll) {
+                msg.status = 'bloqueada';
+                msg.streamId = streamInterationId;
+                const savedMsg = await transactionalEntityManager.save(
+                  PixMessage,
+                  msg,
+                );
+                lockedMessagesInPoll.push(savedMsg);
+              }
+              selectedMessages = lockedMessagesInPoll;
+            }
+          },
+        );
+
+        if (selectedMessages.length > 0) {
+          this.logger.log(
+            `Encontrada(s) ${selectedMessages.length} mensagem(ns) para stream ${streamInterationId} durante long poll.`,
+          );
+          break;
+        }
+      }
+
+      if (selectedMessages.length === 0) {
+        this.logger.log(
+          `Long poll para stream ${streamInterationId} expirou. Nenhuma mensagem encontrada.`,
+        );
+      }
+    }
+
     if (selectedMessages.length > 0) {
       this.logger.log(
-        `Stream ${streamInterationId} (ISPB ${streamIspb}), encontrou e bloqueou ${selectedMessages.length} mensagens.`,
+        `Stream ${streamInterationId} (ISPB ${streamIspb}), retornando ${selectedMessages.length} mensagens bloqueadas.`,
       );
       return {
         messages: selectedMessages,
@@ -114,7 +166,7 @@ export class PixMessagesService {
       };
     } else {
       this.logger.log(
-        `Stream ${streamInterationId} (ISPB ${streamIspb}), nenhuma nova mensagem encontrada.`,
+        `Stream ${streamInterationId} (ISPB ${streamIspb}), nenhuma mensagem disponível após polling. Retornando 204.`,
       );
       return {
         messages: [],
@@ -128,15 +180,32 @@ export class PixMessagesService {
   async generateAndSavePixMessages(
     targetReceiverIspb: string,
     count: number,
-  ): Promise<PixMessage[]> {
+  ): Promise<any[]> {
     const messages: PixMessage[] = [];
     for (let i = 0; i < count; i++) {
       const now = new Date();
-      const timestamp = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
-      const randomPart =
+      const timestamp = `${now.getFullYear()}${(now.getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}${now
+        .getHours()
+        .toString()
+        .padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now
+        .getSeconds()
+        .toString()
+        .padStart(2, '0')}`;
+      const randomPart = (
         Math.random().toString(36).substring(2, 12) +
-        Math.random().toString(36).substring(2, 12);
-      const newEndToEndId = `E${targetReceiverIspb}${timestamp}${i}${randomPart.substring(0, Math.max(0, 22 - i.toString().length))}`;
+        Math.random().toString(36).substring(2, 12)
+      ).padEnd(22, '0');
+
+      const uniqueSuffix = `${i}${randomPart}`;
+      const availableLengthForSuffix =
+        35 - 1 - targetReceiverIspb.length - timestamp.length;
+      const actualSuffix = uniqueSuffix.substring(
+        0,
+        Math.max(0, availableLengthForSuffix),
+      );
+      const newEndToEndId = `E${targetReceiverIspb}${timestamp}${actualSuffix}`;
 
       const newMessageData: Partial<PixMessage> = {
         endToEndId: newEndToEndId.slice(0, 35),
@@ -148,7 +217,7 @@ export class PixMessagesService {
           agencia: '0001',
           contaTransacional: Math.random().toString().slice(2, 10),
           tipoConta: 'CACC',
-        },
+        } as any,
         recebedor: {
           nome: 'Recebedor Fictício ' + i,
           cpfCnpj: Math.random().toString().slice(2, 13),
@@ -156,7 +225,7 @@ export class PixMessagesService {
           agencia: '0002',
           contaTransacional: Math.random().toString().slice(2, 12),
           tipoConta: 'CACC',
-        },
+        } as any,
         recebedorIspb: targetReceiverIspb,
         dataHoraPagamento: now,
         status: 'disponivel',
@@ -165,7 +234,10 @@ export class PixMessagesService {
       const messageEntity = this.pixMessageRepository.create(newMessageData);
       messages.push(await this.pixMessageRepository.save(messageEntity));
     }
-    return messages;
+    return messages.map((msg) => ({
+      ...msg,
+      valor: msg.valor.toFixed(2),
+    }));
   }
 
   async finalizeStream(

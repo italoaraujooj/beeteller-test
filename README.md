@@ -14,6 +14,11 @@ A **PIX-BEETELLER-API** é uma aplicação backend construída com [NestJS](http
 
 O objetivo principal é implementar um mecanismo avançado para o gerenciamento de *streams* de mensagens, garantindo a entrega única, controle de concorrência e funcionalidades de *long polling*, conforme detalhado nos requisitos do desafio.
 
+### Formato dos Dados
+
+**Nota sobre Campos Monetários:**
+O campo `valor` nas mensagens Pix é retornado como uma **string** para garantir a máxima precisão monetária (ex: `"valor": "123.45"`). Os clientes desta API devem estar preparados para tratar este campo como uma string e, se necessário, convertê-lo para um tipo Decimal ou BigNumber apropriado em sua própria lógica para realizar cálculos.
+
 ## Tecnologias Utilizadas
 
 * **Backend:** [NestJS](https://nestjs.com/) (Node.js)
@@ -132,5 +137,5 @@ Este projeto está licenciado sob os termos da licença MIT. Veja o arquivo [LIC
 ---
 
 <p align="center">
-  Desenvolvido para o Desafio Técnico.
+  Desenvolvido para o desafio técnico da empresa Beeteller, feito por Italo Ramalho.
 </p>
